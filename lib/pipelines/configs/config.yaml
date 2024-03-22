@@ -1,0 +1,130 @@
+# Dataset config
+russian_language: False
+
+# Common settings
+random_state: 42
+
+# Resources config
+gpus: [7] # Please leave empty if you do not want to use any cuda devices
+num_cpu: 42
+batch_size: 256
+
+# Model configs
+
+# BigARTM parameters
+artm_config:
+   tiling_window_size: 5
+   tiling_threshold: 0.6 # value between 0 and 1, recommended range 0.55-0.85
+   smoothing_passes: 3
+   smoothing_window: 3
+   topics_qty: 50
+   tokens_qty: 10
+   sp_phi: -1
+   sp_pheta: -0.5
+   dec_phi: 100000
+   collection_passes: 30
+   min_dict_freq: 50
+
+# sentence bert parameters for embeddings calculation
+sbert:
+   cpu_batch_size: 256
+   gpu_batch_size: 256
+
+# BERTopic parameters for segmentation
+bertopic:
+   verbose: false
+   n_leave: null  # how many sentences to select from each document while training
+   n_skip: 1  # will use each n_skip'th element for training. useful for small memory when doing umap and hdbscan
+   reduce_outliers: false
+   tiling:
+      plot: false
+      window_size: 2  # for doc level: 3, for corpus level: 2 (differs for splits)
+      threshold: 0.8  # for doc level: 0.76, for corpus level: 0.9 (differs for splits)
+      smoothing_passes: 1
+      smoothing_window: 1
+      savgol:
+         n_smooth_savgol: 3
+         polyorder: 3
+   CountVectorizer:
+      ngrams: 2  # 1 useful for unigrams for coherence calculations, 
+        # but you can set it to 2 to consider bigrams too
+      min_df: 2
+      max_df: 0.99
+   MaximalMarginalRelevance:
+      diversity: 0.3
+   pickle_path: 'bt'  # set null if you don't want to load/save the entire model (bertopic+umap+hdbscan). It is prefix, 
+   # which will be prepended before dataset type
+
+# Summarization segmentation
+sumseg:
+   tiling:
+      plot: false
+      window_size: 27
+      threshold: 0.8999805913310709
+      smoothing_passes: 1
+      smoothing_window: 1
+      savgol:
+         n_smooth_savgol: 3
+         polyorder: 3
+         savgol_k: 0.029051190486120728
+
+# algorithms
+cuml:
+   use_cuml: true  # true for for corpus-level bertopic, false for document-level bertopic
+   device: 'gpu'
+
+# umap
+umap:
+   n_components: 5
+   n_neighbors: 15  # 15 for for corpus-level bertopic, 5 for document-level bertopic
+   min_dist: 0.0
+   metric: 'cosine'
+   batch_size: 2048  # batch size for transforming data
+
+# hdbscan
+hdbscan:
+   min_samples: 100  # set it to the smallest size grouping that you wish to consider a cluster
+      # 100 for for corpus-level bertopic, 3 for document-level bertopic
+      # recomendations: ami and qmsum work with 100, superdialseg and tiage work with 
+   min_cluster_size: 10  # the larger the value of min_samples you provide, the more conservative the clustering – 
+      # more points will be declared as noise, and clusters will be restricted to progressively more dense areas.
+      # 3 for for corpus-level bertopic, 2 for document-level bertopic
+      # recomendations: ami and qmsum work with 10, superdialseg and tiage work with 
+
+# tiling algorithm config
+tiling_window_size: 32
+tiling_threshold: 0.783 # value between 0 and 1, recommended range 0.55-0.85
+smoothing_passes: 1
+smoothing_window: 1
+find_topictiling_parameters: false
+n_trials: 300
+
+# used for argparser, don't touch it
+subcommand: null
+artm_subcommand: null
+sbert_subcommand: null
+sumseg_subcommand: null
+input_path: null
+output_path: null
+collection: null
+dictionary: null
+model_path: null
+predicts_path: null
+clustering: null
+dataset_type: null
+train_path: null
+val_path: null
+test_path: null
+
+# used for sbert embedding calculation, mainly for test, to don't wait for long calculations
+sample_size: null
+
+# dataset statistics used by random pipelines, taken from validation parts of datasets
+calculate_mean_segment_length: false
+mean_segment_length_wiki: 12.783            # on train wiki727k
+mean_segment_length_ami: 51.72968460111317  # on full ami: 53.08971 if low_granularity (use it), 34.644 if high_granularity
+mean_segment_length_dialseg: 5.58343        # 5.58343 dialseg711, 4.40569 for tiage, 3.25874 for superdialseg
+mean_segment_length_tiage: 4.13183697089947               
+mean_segment_length_superdialseg: 3.3507236407660206 
+mean_segment_length_doc2dial: 1.90305
+mean_segment_length_qmsum: 76.45160474446189
