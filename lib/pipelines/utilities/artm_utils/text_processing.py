@@ -7,19 +7,24 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import WordNetLemmatizer
-from nltk.corpus import words
 from collections import defaultdict
 from ..general import ensure_directory_exists
+from hydra import compose, initialize
 import contractions
-
+import numpy as np
 
 def download_nltk_resources():
-    resources = ['stopwords', 'punkt', 'wordnet', 'words']
+    resources = ['stopwords', 'punkt', 'wordnet']
     for resource in resources:
         nltk.download(resource, quiet=True)
 
 
 download_nltk_resources()
+
+# Not good practice for sure, two entry points for config
+with initialize(config_path="./../../configs", version_base=None):
+    cfg = compose(config_name="config")
+
 tag_pattern = re.compile(r'<[^<]+?>')
 url_pattern = re.compile(r'http\S+')
 non_alphabetic_pattern = re.compile(r'[^a-zA-Z\s]')
@@ -27,9 +32,18 @@ non_alphabetic_pattern_russian = re.compile(r'[^а-яА-Я\s]')
 multiple_space = re.compile(r'\s+')
 characters = re.compile(r'[^\w\s]')
 characters_russian = re.compile(r'[^\w\s]', re.UNICODE)
-stop_words = set(stopwords.words('english'))
-stop_words_russian = set(stopwords.words("russian"))
-available_words = set(words.words())
+
+if not cfg.custom_stopwords:
+    if cfg.russian_language:
+        stop_words = set(stopwords.words("russian"))
+    else:
+        stop_words = set(stopwords.words('english'))
+else:
+    if not os.path.isfile(cfg.custom_stopwords):
+        raise ValueError('Non existing file set in config custom_stopwords')
+    with open(cfg.custom_stopwords) as f:
+        stop_words = list(np.loadtxt(f, dtype='object'))
+
 lemmatizer = WordNetLemmatizer()
 lemmatizer_russian = pymorphy2.MorphAnalyzer()
 
@@ -46,13 +60,13 @@ def tokenize_sentence(input_sentence, russian=False):
         clean_text = characters.sub('', clean_text)
         tokens = word_tokenize(clean_text)
         tokens = [lemmatizer.lemmatize(token) for token in tokens if
-                (token not in stop_words and token in available_words)]
+                token not in stop_words]
     else:
         clean_text = non_alphabetic_pattern_russian.sub('', clean_text)
         clean_text = characters_russian.sub('', clean_text)
         tokens = word_tokenize(clean_text, language='russian')
         tokens = [lemmatizer_russian.parse(token)[0].normal_form for token in tokens if
-                token not in stop_words_russian]
+                token not in stop_words]
     return tokens
 
 

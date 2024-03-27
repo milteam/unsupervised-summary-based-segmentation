@@ -155,8 +155,11 @@ class RussianModel:
             end_index = (i + 1) * batch_size
             batch_sentences = sentences[start_index:end_index]
 
-            encoded_inputs = self.tokenizer(batch_sentences, padding=True, truncation=True,
-                                            max_length=128, pad_to_multiple_of=8,
+            encoded_inputs = self.tokenizer(batch_sentences, 
+                                            padding=True, 
+                                            truncation=True,
+                                            max_length=512, 
+                                            pad_to_multiple_of=8,
                                             return_tensors="pt")
             encoded_inputs = encoded_inputs.to(self.device)
 

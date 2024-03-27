@@ -107,6 +107,7 @@ def depth_score_to_topic_change_indexes(depth_score_timeseries, topic_change_thr
 
     return local_maxima_indices
 
+
 def classify_borders(topic_vectors, window_size=3, threshold=0.65, smoothing_passes=3, smoothing_window=3):
     if len(topic_vectors) < 5:
         return '0' * len(topic_vectors)
@@ -160,11 +161,19 @@ class TopicTilingModel:
             plt.ylabel('Topic score')
             plt.savefig('example_before.jpg')
             plt.close()
+            
+            # plt.figure(figsize=(6,10))
+            # for line in probabilities:
+            #     plt.plot(line, list(range(len(line))))
+            # plt.ylabel('Sentence index')
+            # plt.xlabel('Topic score')
+            # plt.savefig('example_before.jpg')
+            # plt.close()
         
         if self.n_smooth_savgol > 0:
             window_length = int(min(probabilities.shape[1] * self.savgol_k, probabilities.shape[1]))
-            # window_length = int(min(self.savgol_k, probabilities.shape[1]))
-            # window_length = int(self.savgol_k)
+            if window_length % 2 == 0:
+                window_length += 1
             
             if window_length > 1:
                 polyorder = min(window_length - 1, self.polyorder)
@@ -209,7 +218,27 @@ class TopicTilingModel:
             plt.savefig('example_after_ours.jpg')
             plt.close()
             
-            if input('Continue?') == 'no':
-                quit()
+            # plt.figure(figsize=(6,10))
+            # indices = np.where(np.array(list(map(int, gold_boundaries))) == 1)
+            # plt.hlines(indices, xmin=probabilities.min(), xmax=probabilities.max(), colors='black')
+            # for line in probabilities:
+            #     plt.plot(line, list(range(len(line))))
+            # plt.ylabel('Sentence index')
+            # plt.xlabel('Topic score')
+            # plt.savefig('example_after_gold.jpg')
+            # plt.close()
+            
+            # plt.figure(figsize=(6,10))
+            # indices = np.where(np.array(list(map(int, boundaries))) == 1)
+            # plt.hlines(indices, xmin=probabilities.min(), xmax=probabilities.max(), colors='black')
+            # for line in probabilities:
+            #     plt.plot(line, list(range(len(line))))
+            # plt.ylabel('Sentence index')
+            # plt.xlabel('Topic score')
+            # plt.savefig('example_after_ours.jpg')
+            # plt.close()
+            
+            # if input('Continue?') == 'no':
+                # quit()
         
         return boundaries

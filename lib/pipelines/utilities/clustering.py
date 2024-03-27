@@ -1,3 +1,4 @@
+import os
 import pickle
 from pathlib import Path
 
@@ -67,8 +68,14 @@ def get_bertopic_model(cfg):
     ctfidf_model = ClassTfidfTransformer(reduce_frequent_words=True, 
                                         bm25_weighting=True)
     representation_model = MaximalMarginalRelevance(diversity=cfg.bertopic.MaximalMarginalRelevance.diversity)
-    stop_words_dict = None
-    stop_words = 'english' if not cfg.russian_language else stop_words_dict
+    if cfg.custom_stopwords:
+        if not os.path.isfile(cfg.custom_stopwords):
+            raise ValueError('Non existing file set in config custom_stopwords')
+        with open(cfg.custom_stopwords) as f:
+            stop_words = list(np.loadtxt(f, dtype='object'))
+    else:
+        stop_words = 'english'
+
     vectorizer_model = CountVectorizer(stop_words=stop_words, 
                                         ngram_range=(1, cfg.bertopic.CountVectorizer.ngrams), 
                                         token_pattern=r'\b[^\d\W][^\d\W]+\b',

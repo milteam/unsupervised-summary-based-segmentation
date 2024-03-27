@@ -47,3 +47,8 @@ lib/pipelines/runs/*
 **.jpg
 **.xlsx
 **.zip
+
+lib/data/
+lib/pipelines/*.txt
+
+**/**.idea

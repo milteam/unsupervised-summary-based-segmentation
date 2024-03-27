@@ -1,13 +1,14 @@
 # Dataset config
-russian_language: False
+russian_language: true
+custom_stopwords: false # set False or path to the file /data6/user/mipt_dialog_segmentation/data/russian_nltk.txt
 
 # Common settings
 random_state: 42
 
 # Resources config
-gpus: [7] # Please leave empty if you do not want to use any cuda devices
-num_cpu: 42
-batch_size: 256
+gpus: [0,1,2,3] # Please leave empty if you do not want to use any cuda devices
+num_cpu: 30
+batch_size: 128
 
 # Model configs
 
@@ -27,8 +28,8 @@ artm_config:
 
 # sentence bert parameters for embeddings calculation
 sbert:
-   cpu_batch_size: 256
-   gpu_batch_size: 256
+   cpu_batch_size: 128
+   gpu_batch_size: 128
 
 # BERTopic parameters for segmentation
 bertopic:
@@ -57,16 +58,37 @@ bertopic:
 
 # Summarization segmentation
 sumseg:
+   model_name: 'IlyaGusev/rugpt3medium_sum_gazeta'
+   # Available models:
+   # Russian:
+   # IlyaGusev/mbart_ru_sum_gazeta
+   # IlyaGusev/rut5_base_sum_gazeta
+   # IlyaGusev/rugpt3medium_sum_gazeta
+   # csebuetnlp/mT5_m2m_crossSum
+
+   # English:
+   # philschmid/bart-large-cnn-samsum
+   # facebook/bart-large-cnn
+   # mikeadimech/bart-qmsum-meeting-summarization
+   # knkarthick/MEETING_SUMMARY   
+
+   # philschmid/flan-t5-base-samsum
+   # google/flan-t5-base
+   # Falconsai/medical_summarization
+   
+   # patrickvonplaten/led-large-16384-pubmed
+   # rooftopcoder/led-base-book-summary-samsum
+   
    tiling:
       plot: false
-      window_size: 27
-      threshold: 0.8999805913310709
+      window_size: 1
+      threshold: 0.5421396312794721
       smoothing_passes: 1
       smoothing_window: 1
       savgol:
-         n_smooth_savgol: 3
+         n_smooth_savgol: 1
+         savgol_k: 0.7086822726992928
          polyorder: 3
-         savgol_k: 0.029051190486120728
 
 # algorithms
 cuml:
@@ -123,8 +145,13 @@ sample_size: null
 calculate_mean_segment_length: false
 mean_segment_length_wiki: 12.783            # on train wiki727k
 mean_segment_length_ami: 51.72968460111317  # on full ami: 53.08971 if low_granularity (use it), 34.644 if high_granularity
-mean_segment_length_dialseg: 5.58343        # 5.58343 dialseg711, 4.40569 for tiage, 3.25874 for superdialseg
+mean_segment_length_dialseg: 5.658028169014083
 mean_segment_length_tiage: 4.13183697089947               
 mean_segment_length_superdialseg: 3.3507236407660206 
 mean_segment_length_doc2dial: 1.90305
 mean_segment_length_qmsum: 76.45160474446189
+mean_segment_length_sber: 40.93
+mean_segment_length_wikisection: 9.311586666619904  # 9.476682776013083 for city
+
+# Vizualization
+colorize: false

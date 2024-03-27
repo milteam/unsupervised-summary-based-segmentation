@@ -89,16 +89,16 @@ def _calculate_metrics_on_dataset(cfg, ds, topic_model, topictiling_parameters=N
     t = tqdm(ds)
     i = 0
     for example in t:
-        if i > 0:
-            wd_mean = sum(wds) / len(wds)
-            pk_mean = sum(pks) / len(pks)
-            f1_mean = sum(f1s) / len(f1s)
+        # if i > 0:
+        #     wd_mean = sum(wds) / len(wds)
+        #     pk_mean = sum(pks) / len(pks)
+        #     f1_mean = sum(f1s) / len(f1s)
             
-            description = f'wd: {wd_mean:.3f}, '
-            description += f'pk: {pk_mean:.3f}, '
-            description += f'f1: {f1_mean:.3f}'
-            t.set_description(description)
-        i+=1
+        #     description = f'wd: {wd_mean:.3f}, '
+        #     description += f'pk: {pk_mean:.3f}, '
+        #     description += f'f1: {f1_mean:.3f}'
+        #     t.set_description(description)
+        # i+=1
         
         boundary, wd, pk, f1 = _calculate_metric_on_example(cfg, example, topic_model, topictiling_parameters=topictiling_parameters)
 
@@ -193,6 +193,19 @@ def get_scores_bert_topic(cfg):
     }
             
     if cfg.find_topictiling_parameters:
+        topictiling_parameters = _find_parameters_topictiling(cfg, ds_test, topic_model)
+        _, wd_mean, pk_mean, f1_mean = _calculate_metrics_on_dataset(cfg, ds_test, topic_model, topictiling_parameters=topictiling_parameters)
+        score = (2*f1_mean+(1-pk_mean)+(1-wd_mean)) / 4
+        output = f'''
+Using TT parameters after {cfg.n_trials} trials: {topictiling_parameters}
+Best possible metrics for {cfg.test_path} TEST could be (FOUND ON TEST!!! Don't use it!):
+WD {wd_mean:.5f}
+PK {pk_mean:.5f}
+F1 {f1_mean:.5f}
+SCORE {score:.5f}
+        '''
+        print(output)
+        
         topictiling_parameters = _find_parameters_topictiling(cfg, ds_val, topic_model)
         _, wd_mean, pk_mean, f1_mean = _calculate_metrics_on_dataset(cfg, ds_val, topic_model, topictiling_parameters=topictiling_parameters)
         score = (2*f1_mean+(1-pk_mean)+(1-wd_mean)) / 4

@@ -3,10 +3,11 @@ import codecs
 import json
 import os
 import re
+import random
 
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize, sent_tokenize
 
 from datasets import Dataset
 from .wiki_loader import WikipediaDataSet
@@ -32,6 +33,17 @@ def get_labels(indices):
         if i + 1 in indices[:-1]:
             label += 1
     return labels
+
+
+def get_topics(boundaries):
+    assert len(boundaries) > 1
+    topics = []
+    topic = 0
+    for i in range(len(boundaries)):
+        if boundaries[i] == '1':
+            topic += 1 
+        topics.append(topic)
+    return topics
 
 
 # Wiki:
@@ -379,6 +391,10 @@ def load_dataset_by(cfg):
         generator = DocToDialDataset(cfg.input_path).get_generator()
     elif cfg.dataset_type == 'qmsum':
         generator = QMSumDataset(cfg.input_path).get_generator()
+    elif cfg.dataset_type == 'sber':
+        generator = SberDataset(cfg.input_path).get_generator()
+    elif cfg.dataset_type == 'wikisection':
+        generator = WikiSectionDataset(cfg.input_path).get_generator()
     else:
         raise ValueError(f'No such dataset type {cfg.dataset_type} exist!')
     
@@ -452,6 +468,10 @@ def get_mean_segment_length(cfg):
         mean_segment_length = cfg.mean_segment_length_qmsum
     elif cfg.dataset_type == 'doc2dial':
         mean_segment_length = cfg.mean_segment_length_doc2dial
+    elif cfg.dataset_type == 'sber':
+        mean_segment_length = cfg.mean_segment_length_sber
+    elif cfg.dataset_type == 'wikisection':
+        mean_segment_length = cfg.mean_segment_length_wikisection
     else:
         raise ValueError(f'No such dataset type {cfg.dataset_type} exist!')
     return mean_segment_length
@@ -463,5 +483,247 @@ def get_savgol_k(cfg):
 
 # Local dataset:
 
-class SberDataset:
-    pass
+class SberDataset:    
+    def __init__(self, path):
+        self.path = path
+        df = pd.read_csv(self.path, index_col=0)
+        self.dataset_dict = self.get_dict(df)
+    
+    def remove_tags(self, phrase):
+        """Do small data preprocessing
+        """
+        return phrase.replace('@', '').replace('#', '')
+    
+    def transform_label(self, label_list, encoded_labels, x):
+        """ Transforms label's name to it's encoded type
+            in label's dictionary
+        """
+        for i in range(len(label_list)):
+            if x == label_list[i]:
+                return encoded_labels[i]
+            else:
+                continue
+        
+    def get_boundaries(self, df, separator = ''):        
+        """Forms boundaries in dialogs in format of our
+           preprocessing classes
+        """
+        i=0 
+        boundary = [] # boundary in one dialog
+        all_boundaries = [] 
+        for i in range(len(self.df['phrase_num'])):
+            try:
+                if int(self.df['phrase_num'][i]) <= int(self.df['phrase_num'][i+1]):
+                    boundary.append(self.df['segment_start'][i])
+                else:
+                    boundary.append(self.df['segment_start'][i])
+                    all_boundaries.append(''.join(str(x) for x in boundary))
+                    boundary = []
+            except KeyError:
+                boundary.append(self.df['segment_start'][i])
+                all_boundaries.append(''.join(str(x) for x in boundary))
+                boundary = []    
+        return all_boundaries
+    
+    
+    def get_sections(self, df, separator=''):
+        """Gets full dialogs in the format:
+            1) All sentences are on a new line.
+            2) Each sentence is separated by a comma.
+            3) Each document packed in a list and all_sections is also a nested list.
+        """
+        section = []
+        all_sections = []
+        for i in range(len(df['phrase_num'])):
+            try:
+                if int(df['phrase_num'][i]) <= int(df['phrase_num'][i+1]):
+                    section.append(self.df['clean_phrase'][i])
+                else:
+                    section.append(self.df['clean_phrase'][i])
+                    all_sections.append(section)
+                    section = []
+            except KeyError:
+                section.append(self.df['clean_phrase'][i])
+                all_sections.append(section)
+                section = []
+        return all_sections
+
+    
+    def get_labels(self, df):
+        """Gets labels of sentences in dialogs in format of our
+           preprocessing classes
+        """
+        label_list = df['type'].unique()
+        encoder = LabelEncoder()
+        encoded_list = encoder.fit_transform(label_list)
+        i=0 
+        label = [] # label in one dialog
+        all_labels = [] 
+        for i in range(len(self.df['phrase_num'])):
+            try:
+                if int(self.df['phrase_num'][i]) <= int(self.df['phrase_num'][i+1]):
+                    label.append(self.transform_label(label_list,
+                                                      encoded_list,
+                                                      self.df['type'][i]))
+                else:
+                    label.append(self.transform_label(label_list,
+                                                      encoded_list,
+                                                      self.df['type'][i]))
+                    all_labels.append(label)
+                    label = []
+            except KeyError:
+                label.append(self.transform_label(label_list,
+                                                      encoded_list,
+                                                      self.df['type'][i]))
+                all_labels.append(label)
+                label = []    
+        return all_labels
+    
+    def get_topic_names(self, df):
+        """Gets all topic names with their encoded ones"""
+        label_list = df['type'].unique()
+        encoder = LabelEncoder()
+        encoded_list = encoder.fit_transform(label_list)
+        topic_lst = []
+        for i in range(len(label_list)):
+            topic_lst.append(f'{label_list[i]}, {encoded_list[i].item()}')    
+        return topic_lst
+     
+    def get_dict(self, df):
+        """Starts the entire class process
+        """
+        sections = self.get_sections(df)
+        boundaries = self.get_boundaries(df)
+        labels = self.get_labels(df)
+#         topic_names = self.get_topic_names(df)
+        sections = [[self.remove_tags(sentence) for sentence in section] for section in sections]
+#         result = [''.join(section) for section in sections]
+        format_dict = {
+            'sections': sections,
+            'boundaries': boundaries,
+            'labels': labels
+        }
+        return format_dict
+    
+    def _get_sample(self):
+        sec_list = self.dataset_dict['sections']
+        bnd_list = self.dataset_dict['boundaries']
+        lbl_list = self.dataset_dict['labels']
+        for dlg_section, dlg_boundaries, dlg_labels in zip(sec_list, bnd_list, lbl_list):
+            yield {'sections': dlg_section,
+                   'labels': dlg_labels,
+                   'boundaries': dlg_boundaries}
+
+    def get_generator(self):
+        return self._get_sample
+
+
+def colorize(ds):
+    def create_class_colors(sentence_classes, seed=123):
+        random.seed =seed
+        
+        class_colors = {}
+        for sentence_class in set(sentence_classes):
+            r = lambda: random.randint(0, 255)
+            color = '#{:02x}{:02x}{:02x}'.format(r(), r(), r())
+            class_colors[sentence_class] = '\033[38;2;{};{};{}m'.format(
+                *tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+            )
+        return class_colors      
+            
+    def print_colored_text(sentences, sentence_classes, class_colors):
+        print('Classes:', *sentence_classes)
+        for i, sentence in enumerate(sentences):
+            sentence_class = sentence_classes[i]
+            color = class_colors.get(sentence_class, '')
+            print(color + sentence + '\033[0m', end=' ')
+        print('\n')
+            
+    for i, data in enumerate(ds):
+        # get original segmentation:
+        # print(i, data['path'])
+        print(i)
+        # print(data['topic_names'])
+        sentences = data['sections']
+        sentence_classes = data['labels']
+        print(f'N of sections in document: {len(set(sentence_classes))}')
+        print(f'N of simple sentences in summary: {len(data["splitted_summary"])}')
+        
+        # print('Original:')
+        class_colors = create_class_colors(sentence_classes)
+        # print_colored_text(sentences, sentence_classes, class_colors)
+        
+        if 'summary' in ds.column_names:
+            print(f'Summary: {data["summary"]}')
+            print(f'Summary split: {data["splitted_summary"]}')
+            print()
+        
+        print('Predicted:')
+        topics = data['topics_pred']
+        class_colors = create_class_colors(topics)
+        print_colored_text(sentences, topics, class_colors)
+        
+        # input('Enter to continue, Ctrl-C to exit:')
+        
+        
+class WikiSectionDataset:
+    def __init__(self, path):
+        self.path = path
+
+    @staticmethod
+    def parse_document(document):
+        sections = []
+        labels = []
+        boundaries = ''
+        targets = []
+        topic_names = []
+        prev_topic = None
+        label = 0
+        
+        for annotation in document['annotations']:
+            s_ix = annotation['begin']
+            e_ix = s_ix + annotation['length']
+            section = document['text'][s_ix:e_ix]
+            topic = annotation['sectionLabel']
+            sentences = sent_tokenize(section, language="english")
+            for ix, sentence in enumerate(sentences):
+                if ix == 0:
+                    if prev_topic is not None and prev_topic != topic:
+                        label += 1
+                        topic_names.append(topic)
+                        targets.append(len(sections))
+                        sections.append(sentence)
+                        labels.append(label)
+                        boundaries += '1'
+                        prev_topic = topic
+                        continue
+                    elif prev_topic is None:
+                        prev_topic = topic
+                        topic_names.append(topic)
+    
+                sections.append(sentence)
+                labels.append(label)
+                boundaries += '0'
+    
+        output = {'path': 'path',
+                  'id': document['id'],
+                  'sections': sections,
+                  'labels': labels,
+                  'boundaries': boundaries,
+                  'split_indices': targets,
+                  'topic_names': topic_names}
+        
+        return output
+                    
+
+    def _get_sample(self):
+        with open(self.path) as file:
+            documents = json.load(file)
+            for document in documents:
+                parsed_document = self.parse_document(document)
+                if len(parsed_document['sections']) > 1 and parsed_document['boundaries'].count('1') > 0:
+                    yield parsed_document
+
+    
+    def get_generator(self):
+        return self._get_sample

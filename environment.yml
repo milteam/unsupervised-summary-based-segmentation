@@ -406,4 +406,4 @@ dependencies:
     - xxhash==3.2.0
     - xyzservices==2023.7.0
     - yarl==1.9.2
-prefix: rapids-23.06
+prefix: /home/artemiev/miniconda/envs/rapids-23.06
